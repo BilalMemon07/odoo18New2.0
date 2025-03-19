@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name" : "Manual Currency Exchange Rate on ",
-    "version" : "17.0.0.0",
+    "version" : "18.0.0.0",
     "depends" : ['base','account','purchase','sale_management','stock'],
     "author": "Muhammad Bilal",
     "summary": "",
