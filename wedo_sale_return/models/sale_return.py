@@ -231,7 +231,7 @@ class SaleReturn(models.Model):
             'product_qty': order.quantity,
             'qty_return': order.quantity - order.returned_qty,
             'product_uom': order.product_uom_id.id,
-            'tax_id': [(6, 0, order.tax_id.ids)],
+            'tax_id': [(6, 0, order.tax_ids.ids)],
             'discount': order.discount,
             'price_unit': order.price_unit, }
         return vals
