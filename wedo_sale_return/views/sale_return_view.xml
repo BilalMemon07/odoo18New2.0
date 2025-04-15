@@ -78,7 +78,7 @@
                                 <field name="picking_ids" widget="many2many_tags" force_save="1" readonly="1"/>
                             </group>
                             <group>
-                                <field name="move_id_id" domain="[('partner_id','=',partner_id)]"
+                                <field name="move_id" domain="[('partner_id','=',partner_id)]"
                                        readonly="state != 'draft'"
                                        invisible="sale != True"
                                        required="sale == True"/>
