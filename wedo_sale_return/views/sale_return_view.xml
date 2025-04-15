@@ -80,8 +80,8 @@
                             <group>
                                 <field name="move_id" domain="[('partner_id','=',partner_id)]"
                                        readonly="state != 'draft'"
-                                       invisible="sale != True"
-                                       required="sale == True"/>
+                                       invisible="move != True"
+                                       required="move == True"/>
                                 <field name="date_order" readonly="state != 'draft'"
                                 />
                                 <field name="reason_id" readonly="state != 'draft'"
