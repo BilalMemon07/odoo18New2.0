@@ -34,6 +34,7 @@ class SaleReturn(models.Model):
 
     name = fields.Char(string="Name", copy=False, readonly=True, default=lambda x: _('New'))
     date_order = fields.Datetime('Order Date', required=True, default=fields.Datetime.now())
+    move_id = fields.Many2one('account.move', string="Invoice", track_visibility='always')
     sale_order_id = fields.Many2one('sale.order', string="Sale Order", track_visibility='always')
     location_id = fields.Many2one('stock.location', string="Return Location", track_visibility='always')
     picking_ids = fields.One2many('stock.picking', 'sale_return_id', string="Return Picking", track_visibility='always')
@@ -51,6 +52,7 @@ class SaleReturn(models.Model):
                                         default=_get_default_journal)
     invoice_count = fields.Integer(string='Invoices', compute='_compute_invoice_count')
     picking_count = fields.Integer(string='Picking', compute='_compute_invoice_count')
+    move = fields.Boolean(string="From Invoices")
     sale = fields.Boolean(string="From Sale Order")
     invoice_ids = fields.One2many('account.move', 'sale_return_id', string="Invoice")
     location_id = fields.Many2one('stock.location', 'Receive To')
@@ -147,7 +149,7 @@ class SaleReturn(models.Model):
 
     @api.onchange('pricelist_id', 'order_line_ids')
     def _onchange_pricelist_id(self):
-        if self.order_line_ids and self.pricelist_id and not self.sale and self.partner_id.property_product_pricelist != self.pricelist_id:
+        if self.order_line_ids and self.pricelist_id and not self.move and self.partner_id.property_product_pricelist != self.pricelist_id:
             self.show_update_pricelist = True
         else:
             self.show_update_pricelist = False
@@ -204,25 +206,25 @@ class SaleReturn(models.Model):
             'target': 'current'
         }
 
-    @api.onchange('sale_order_id', 'sale')
+    @api.onchange('move_id', 'move')
     def get_line(self):
         for rec in self:
-            if rec.sale:
-                if rec.sale_order_id:
+            if rec.move:
+                if rec.move_id:
                     rec.order_line_ids = False
                     rec.currency_id = False
                     lines = []
-                    for order in rec.sale_order_id.order_line:
+                    for order in rec.move_id.invoice_line_ids:
                         vals = self.get_line_vals(order)
                         lines.append((0, 0, vals))
-                    rec.write({'order_line_ids': lines, 'pricelist_id': rec.sale_order_id.pricelist_id.id})
+                    rec.write({'order_line_ids': lines, 'pricelist_id': rec.move_id.pricelist_id.id})
             else:
                 rec.order_line_ids = False
-                rec.sale_order_id = False
+                rec.move_id = False
 
     def get_line_vals(self, order):
         vals = {
-            'sale_order_id': order.id,
+            'move_id': order.id,
             'name': order.name,
             'display_type': order.display_type if order.display_type in ['line_section', 'line_note'] else False,
             'product_id': order.product_id.id,
@@ -238,8 +240,8 @@ class SaleReturn(models.Model):
     def chang_partner(self):
         for rec in self:
             rec.order_line_ids = False
-            rec.sale_order_id = False
-            rec.pricelist_id = rec.partner_id.property_product_pricelist.id if not rec.sale else False
+            rec.move_id = False
+            rec.pricelist_id = rec.partner_id.property_product_pricelist.id if not rec.move else False
 
     def action_confirm(self):
         for rec in self:
@@ -250,10 +252,10 @@ class SaleReturn(models.Model):
             returns = self.order_line_ids.filtered(lambda r: r.qty_return > 0 and r.display_type == False)
             if returns:
                 self.create_picking_returns(returns)
-                if self.sale_order_id:
+                if self.move_id:
                     for line in self.order_line_ids:
-                        if line.sale_order_id:
-                            line.sale_order_id.returned_qty += line.qty_return
+                        if line.move_id:
+                            line.move_id.returned_qty += line.qty_return
             else:
                 raise ValidationError(_("No line to return picking"))
             self.state = 'done'
@@ -376,7 +378,7 @@ class SaleReturnLine(models.Model):
         ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
     name = fields.Text(string='Description', required=True)
 
-    sale_order_id = fields.Many2one('sale.order.line', string='Sale Order line', )
+    move_id = fields.Many2one('account.move.line', string='Invoice line', )
     state = fields.Selection(related='order_id.state', store=True, )
     qty_return = fields.Float("Return Qty", digits='Product Unit of Measure')
     received_qty = fields.Float("Received Qty", compute="get_qty_amount", store=True, digits='Product Unit of Measure')
@@ -593,27 +595,11 @@ class SaleReturnLine(models.Model):
 
         return res
 
-    # @api.onchange('product_uom', 'qty_return','product_id','order_id.pricelist_id')
-    # def product_uom_change(self):
-    #     if self.order_id.pricelist_id and self.order_id.partner_id:
-    #         product = self.product_id.with_context(
-    #             lang=self.order_id.partner_id.lang,
-    #             partner=self.order_id.partner_id,
-    #             quantity=self.qty_return,
-    #             date=self.order_id.date_order,
-    #             pricelist=self.order_id.pricelist_id.id,
-    #             uom=self.product_uom.id,
-    #             fiscal_position=self.env.context.get('fiscal_position')
-    #         )
-    #         self.price_unit = self.env['account.tax']._fix_tax_included_price_company(self._get_display_price(),
-    #                                                                                   product.taxes_id, self.tax_id,
-    #                                                                                   self.company_id)
-
     @api.onchange('qty_return')
     def onchange_qty_return(self):
         for rec in self:
-            if rec.sale_order_id and rec.qty_return > 0:
-                if (rec.sale_order_id.returned_qty + rec.qty_return) > rec.sale_order_id.product_uom_qty:
+            if rec.move_id and rec.qty_return > 0:
+                if (rec.move_id.returned_qty + rec.qty_return) > rec.move_id.product_uom_qty:
                     raise ValidationError(_("Return quantity should be less than or equal to the bought quantity"))
 
 
@@ -663,100 +649,6 @@ class SaleReturnReason(models.Model):
     ]
 
 
-# class StockMoveInherit(models.Model):
-#     _inherit = 'stock.move'
-#
-#     def _action_confirm(self, merge=False, merge_into=False):
-#         """ Confirms stock move or put it in waiting if it's linked to another move.
-#         :param: merge: According to this boolean, a newly confirmed move will be merged
-#         in another move of the same picking sharing its characteristics.
-#         """
-#         # Use OrderedSet of id (instead of recordset + |= ) for performance
-#         move_create_proc, move_to_confirm, move_waiting = OrderedSet(), OrderedSet(), OrderedSet()
-#         to_assign = defaultdict(OrderedSet)
-#         for move in self:
-#             if move.state != 'draft':
-#                 continue
-#             # if the move is preceded, then it's waiting (if preceding move is done, then action_assign has been called already and its state is already available)
-#             if move.move_orig_ids:
-#                 move_waiting.add(move.id)
-#             else:
-#                 if move.procure_method == 'make_to_order':
-#                     move_create_proc.add(move.id)
-#                 else:
-#                     move_to_confirm.add(move.id)
-#             if move._should_be_assigned():
-#                 key = (move.group_id.id, move.location_id.id, move.location_dest_id.id)
-#                 to_assign[key].add(move.id)
-#
-#         move_create_proc, move_to_confirm, move_waiting = self.browse(move_create_proc), self.browse(
-#             move_to_confirm), self.browse(move_waiting)
-#
-#         # create procurements for make to order moves
-#         procurement_requests = []
-#         for move in move_create_proc:
-#             values = move._prepare_procurement_values()
-#             origin = move._prepare_procurement_origin()
-#             procurement_requests.append(self.env['procurement.group'].Procurement(
-#                 move.product_id, move.product_uom_qty, move.product_uom,
-#                 move.location_id, move.rule_id and move.rule_id.name or "/",
-#                 origin, move.company_id, values))
-#         self.env['procurement.group'].run(procurement_requests,
-#                                           raise_user_error=not self.env.context.get('from_orderpoint'))
-#
-#         move_to_confirm.write({'state': 'confirmed'})
-#         (move_waiting | move_create_proc).write({'state': 'waiting'})
-#         # procure_method sometimes changes with certain workflows so just in case, apply to all moves
-#         (move_to_confirm | move_waiting | move_create_proc).filtered(
-#             lambda m: m.picking_type_id.reservation_method == 'at_confirm') \
-#             .write({'reservation_date': fields.Date.today()})
-#
-#         # assign picking in batch for all confirmed move that share the same details
-#         for moves_ids in to_assign.values():
-#             self.browse(moves_ids).with_context(clean_context(self.env.context))._assign_picking()
-#         new_push_moves = self.filtered(lambda m: not m.picking_id.immediate_transfer)._push_apply()
-#         self._check_company()
-#         moves = self
-#         if merge:
-#             moves = self._merge_moves(merge_into=merge_into)
-#
-#         # Transform remaining move in return in case of negative initial demand
-#         neg_r_moves = moves.filtered(lambda move: float_compare(
-#             move.product_uom_qty, 0, precision_rounding=move.product_uom.rounding) < 0)
-#         for move in neg_r_moves:
-#             move.location_id, move.location_dest_id = move.location_dest_id, move.location_id
-#             orig_move_ids, dest_move_ids = [], []
-#             for m in move.move_orig_ids | move.move_dest_ids:
-#                 from_loc, to_loc = m.location_id, m.location_dest_id
-#                 if float_compare(m.product_uom_qty, 0, precision_rounding=m.product_uom.rounding) < 0:
-#                     from_loc, to_loc = to_loc, from_loc
-#                 if to_loc == move.location_id:
-#                     orig_move_ids += m.ids
-#                 elif move.location_dest_id == from_loc:
-#                     dest_move_ids += m.ids
-#             move.move_orig_ids, move.move_dest_ids = [(6, 0, orig_move_ids)], [(6, 0, dest_move_ids)]
-#             move.product_uom_qty *= -1
-#             if move.picking_type_id.return_picking_type_id:
-#                 move.picking_type_id = move.picking_type_id.return_picking_type_id
-#             # We are returning some products, we must take them in the source location
-#             move.procure_method = 'make_to_stock'
-#         neg_r_moves._assign_picking()
-#
-#         # call `_action_assign` on every confirmed move which location_id bypasses the reservation + those expected to be auto-assigned
-#         moves.filtered(lambda move: not move.picking_id.immediate_transfer
-#                                     and move.state in ('confirmed', 'partially_available')
-#                                     and (move._should_bypass_reservation()
-#                                          or move.picking_type_id.reservation_method == 'at_confirm'
-#                                          or (move.reservation_date and move.reservation_date <= fields.Date.today()))) \
-#             ._action_assign()
-#         if new_push_moves:
-#             neg_push_moves = new_push_moves.filtered(
-#                 lambda sm: float_compare(sm.product_uom_qty, 0, precision_rounding=sm.product_uom.rounding) < 0)
-#             (new_push_moves - neg_push_moves)._action_confirm()
-#             # Negative moves do not have any picking, so we should try to merge it with their siblings
-#             neg_push_moves._action_confirm(merge_into=neg_push_moves.move_orig_ids.move_dest_ids)
-#
-#         return moves
 
 class StockMoveInherit(models.Model):
     _inherit = 'stock.move'
@@ -857,7 +749,8 @@ class ResUserInheritForWarehouse(models.Model):
     default_picking_type = fields.Many2one('stock.picking.type', domain=lambda self: self._get_picking_domain())
 
 
-class SaleOrderLineInheritForReturns(models.Model):
-    _inherit = 'sale.order.line'
+
+class AccountMoveLineInheritForReturns(models.Model):
+    _inherit = 'account.move.line'
 
     returned_qty = fields.Float(string='Returned quantity')

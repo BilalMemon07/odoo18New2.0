@@ -49,7 +49,7 @@
                         <group>
                             <group>
                                 <field name="is_sale_return_manager" readonly="1" force_save="1" invisible="1"/>
-                                <field name="sale"
+                                <field name="move"
                                        readonly="state != 'draft'"/>
                                 <field name="partner_id" widget="res_partner_many2one"
                                        context="{'res_partner_search_mode': 'customer', 'show_address': 1, 'show_vat': True}"
@@ -61,7 +61,7 @@
                                 <div groups="product.group_product_pricelist" class="o_row">
                                     <field name="pricelist_id" force_save="1"
                                            options="{'no_open':True,'no_create': True}"
-                                           readonly="state != 'draft' or sale_order_id == False"/>
+                                           readonly="state != 'draft' or move_id == False"/>
                                     <button name="update_prices" type="object"
                                             string=" Update Prices"
                                             help="Recompute all prices based on this pricelist"
@@ -78,7 +78,7 @@
                                 <field name="picking_ids" widget="many2many_tags" force_save="1" readonly="1"/>
                             </group>
                             <group>
-                                <field name="sale_order_id" domain="[('partner_id','=',partner_id)]"
+                                <field name="move_id_id" domain="[('partner_id','=',partner_id)]"
                                        readonly="state != 'draft'"
                                        invisible="sale != True"
                                        required="sale == True"/>
@@ -88,7 +88,7 @@
 
                                        options="{'no_create_edit': True,'no_create': True}"/>
                                 <field name="currency_id" groups="base.group_multi_currency" force_save="1"
-                                       readonly="state != 'draft' or sale_order_id != False"
+                                       readonly="state != 'draft' or move_id != False"
                                 />
                                 <field name="return_journal_id"
                                        domain="[('type','=','sale'),('company_id','=',company_id)]"
@@ -128,7 +128,7 @@
                                             <create name="add_note_control" string="Add a note"
                                                     context="{'default_display_type': 'line_note'}"/>
                                         </control>
-                                        <field name="sale_order_id" invisible="1"/>
+                                        <field name="move_id" invisible="1"/>
                                         <field name="display_type" invisible="1"/>
                                         <field name="product_id"
                                                readonly="state != 'draft' and state != False"
@@ -200,7 +200,7 @@
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="sales_person_n"/>
-                    <field name="sale_order_id"/>
+                    <field name="move_id"/>
                     <field name="date_order"/>
                     <field name="state"/>
                     <field name="total"/>
@@ -233,10 +233,10 @@
             <field name="model">sale.return</field>
             <field name="arch" type="xml">
                 <search string="Sale Return Filter">
-                    <field name="sale"/>
+                    <field name="move"/>
                     <field name="name"/>
                     <field name="picking_ids"/>
-                    <field name="sale_order_id"/>
+                    <field name="move_id"/>
                     <field name="return_journal_id"/>
                     <field name="partner_id"/>
                     <field name="date_order"/>
@@ -244,7 +244,7 @@
                     <group expand="0" string="Group By">
                         <filter string="Customer" name="groupby_partner" domain="[]"
                                 context="{'group_by': 'partner_id'}"/>
-                        <filter string="Sale" name="groupby_sale" domain="[]" context="{'group_by': 'sale'}"/>
+                        <filter string="move" name="groupby_move" domain="[]" context="{'group_by': 'move'}"/>
                         <filter string="State" name="groupby_state" domain="[]" context="{'group_by': 'state'}"/>
                     </group>
                 </search>
