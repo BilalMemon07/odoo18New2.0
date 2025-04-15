@@ -614,6 +614,11 @@ class AccountMove(models.Model):
         ('cancel', 'Cancelled'),
     ], string='Status', required=True, readonly=True, copy=False, tracking=True,
         default='draft', store=True)
+    pricelist_id = fields.Many2one(
+        'product.pricelist', string='Pricelist', check_company=True,  # Unrequired company
+        required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]},
+        domain="['|', ('company_id', '=', False), ('company_id', '=', company_id)]", tracking=1,
+        help="If you change the pricelist, only newly added lines will be affected.")
 
 
 class AccountMoveLine(models.Model):
