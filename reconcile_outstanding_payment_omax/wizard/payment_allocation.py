@@ -51,10 +51,10 @@ class ReconcilePayment(models.TransientModel):
                 else:
                     raise UserError(_("The Status must be 'In Process'."))
                 #Partner
-                if len(set(partner_ids)) > 1:
-                    raise UserError(_("The Partner must be unique."))
-                else:
-                    pass
+                # if len(set(partner_ids)) > 1:
+                #     raise UserError(_("The Partner must be unique."))
+                # else:
+                #     pass
                 #payment_type
                 if len(set(payment_type)) > 1:
                     raise UserError(_("The Payment Type must be Same."))
