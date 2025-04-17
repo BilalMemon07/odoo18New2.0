@@ -56,10 +56,10 @@ class OutstandingPayment(models.TransientModel):
                 else:
                     raise UserError(_("The Status must be 'Posted'."))
                 #Partner
-                if len(set(partner_ids)) > 1:
-                    raise UserError(_("Multiple Partners Found! Your can reconcile outstanding payments for unique Partner."))
-                else:
-                    pass
+                # if len(set(partner_ids)) > 1:
+                #     raise UserError(_("Multiple Partners Found! Your can reconcile outstanding payments for unique Partner."))
+                # else:
+                #     pass
                 #payment state
                 if 'paid' in payment_state or any(move.amount_residual == 0.00 for move in moves):
                     raise UserError(_("Already Paid record not allowed for Reconcile."))
