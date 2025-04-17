@@ -229,32 +229,33 @@ class OutstandingPayment(models.TransientModel):
                 ###
                 #print("move===>>>",move)
                 #print("content===>>>",move.invoice_outstanding_credits_debits_widget.get('content'))
-                for line in move.invoice_outstanding_credits_debits_widget.get('content'):
-                    #print("line===>>>",line)
-                    #print("payment_id.is_reconciled===>>",payment_id.is_reconciled)
-                    if line.get('account_payment_id') == payment_id.id and payment_id.is_reconciled == False and paid_amount:
-                        #print("in if condition")
-                        opp_reconcile_id = line.get('id')
-                        ln = self.env["account.move.line"].browse(opp_reconcile_id)
-                        if abs(ln.amount_residual_currency) > paid_amount:
-                            amount_residual_currency = sign * paid_amount
-                        else:
-                            amount_residual_currency = ln.amount_residual_currency
-                        
-                        if abs(ln.amount_residual) > paid_amount:
-                            amount_residual = sign * paid_amount
-                        else:
-                            amount_residual = ln.amount_residual
-                        ln.amount_residual_currency = amount_residual_currency
-                        ln.amount_residual = amount_residual
-                        move.js_assign_outstanding_line(opp_reconcile_id)
-                        #multiple move has partial payment and assign amount is fully paid then,
-                        # not repeate for 2nd payment
-                        if abs(amount_residual) == paid_amount:
-                            outstanding_move_ids -= outstanding_move_id
-                        paid_amount -= abs(amount_residual)
-                        outstanding_move_id.paid_amount -= abs(amount_residual)
-                        
+                if move.invoice_outstanding_credits_debits_widget:
+                    for line in move.invoice_outstanding_credits_debits_widget.get('content'):
+                        #print("line===>>>",line)
+                        #print("payment_id.is_reconciled===>>",payment_id.is_reconciled)
+                        if line.get('account_payment_id') == payment_id.id and payment_id.is_reconciled == False and paid_amount:
+                            #print("in if condition")
+                            opp_reconcile_id = line.get('id')
+                            ln = self.env["account.move.line"].browse(opp_reconcile_id)
+                            if abs(ln.amount_residual_currency) > paid_amount:
+                                amount_residual_currency = sign * paid_amount
+                            else:
+                                amount_residual_currency = ln.amount_residual_currency
+                            
+                            if abs(ln.amount_residual) > paid_amount:
+                                amount_residual = sign * paid_amount
+                            else:
+                                amount_residual = ln.amount_residual
+                            ln.amount_residual_currency = amount_residual_currency
+                            ln.amount_residual = amount_residual
+                            move.js_assign_outstanding_line(opp_reconcile_id)
+                            #multiple move has partial payment and assign amount is fully paid then,
+                            # not repeate for 2nd payment
+                            if abs(amount_residual) == paid_amount:
+                                outstanding_move_ids -= outstanding_move_id
+                            paid_amount -= abs(amount_residual)
+                            outstanding_move_id.paid_amount -= abs(amount_residual)
+                            
         #second move is credit debit note
         #print("\n\n****second move is credit debit note")
         #print("reconcile_move_ids==>>",reconcile_move_ids)
