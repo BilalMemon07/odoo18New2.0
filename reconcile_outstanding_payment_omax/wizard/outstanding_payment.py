@@ -185,10 +185,12 @@ class OutstandingPayment(models.TransientModel):
                                     recon_move_lst.append(recon_move.id)
                                 
             #print("payment_line_vals===>>>",payment_line_vals)
-            if not payments and len(payment_line_vals) == 0:
-                raise UserError(_("Not found any Payment for '%s'.",partner_ids.name))
+            # if not payments and len(payment_line_vals) == 0:
+            #     raise UserError(_("Not found any Payment for '%s'.",partner_ids.name))
+            
+
             res.update({
-                'partner_id': [6,0,partner_ids.ids],
+                'partner_id': [(6, 0, partner_ids.ids)],
                 'outstanding_move_ids': move_line_vals,
                 'outstanding_payment_ids':payment_line_vals,
             })
