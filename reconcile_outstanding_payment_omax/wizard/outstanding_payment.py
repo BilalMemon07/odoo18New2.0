@@ -10,7 +10,7 @@ class OutstandingPayment(models.TransientModel):
     _name = 'outstanding.payment'
     _description = 'OutstandingPayment'
 
-    partner_id = fields.Many2many('res.partner', string='Partner',required=True, readonly=True)
+    partner_id = fields.Many2one('res.partner', string='Partner',required=True, readonly=True)
     outstanding_move_ids = fields.One2many('outstanding.account.move', 'outstanding_pyament_id', string="Moves")
     outstanding_payment_ids = fields.One2many('outstanding.account.payment', 'outstanding_pyament_id', string="Payments")
     to_be_paid_amount = fields.Float("To be Paid Total Amount", readonly=True)
@@ -56,10 +56,10 @@ class OutstandingPayment(models.TransientModel):
                 else:
                     raise UserError(_("The Status must be 'Posted'."))
                 #Partner
-                # if len(set(partner_ids)) > 1:
-                #     raise UserError(_("Multiple Partners Found! Your can reconcile outstanding payments for unique Partner."))
-                # else:
-                #     pass
+                if len(set(partner_ids)) > 1:
+                    raise UserError(_("Multiple Partners Found! Your can reconcile outstanding payments for unique Partner."))
+                else:
+                    pass
                 #payment state
                 if 'paid' in payment_state or any(move.amount_residual == 0.00 for move in moves):
                     raise UserError(_("Already Paid record not allowed for Reconcile."))
@@ -85,7 +85,7 @@ class OutstandingPayment(models.TransientModel):
                 payment_type = 'outbound'
             if move_types[0] in ['out_invoice','in_refund']:
                 payment_type = 'inbound'
-            payments = self.env["account.payment"].search([('is_reconciled','=',False),('partner_id','in',partner_ids.ids), ('currency_id','=',currency_ids.id),('payment_type','=',payment_type), ('state','in',['in_process', 'paid'])])
+            payments = self.env["account.payment"].search([('is_reconciled','=',False),('partner_id','=',partner_ids.id), ('currency_id','=',currency_ids.id),('payment_type','=',payment_type), ('state','in',['in_process', 'paid'])])
             #ADD PAYMENTS Lines
             payment_line_vals = []
             payments = payments.sorted(key=lambda r: (r.date))
@@ -185,12 +185,10 @@ class OutstandingPayment(models.TransientModel):
                                     recon_move_lst.append(recon_move.id)
                                 
             #print("payment_line_vals===>>>",payment_line_vals)
-            # if not payments and len(payment_line_vals) == 0:
-            #     raise UserError(_("Not found any Payment for '%s'.",partner_ids.name))
-            
-
+            if not payments and len(payment_line_vals) == 0:
+                raise UserError(_("Not found any Payment for '%s'.",partner_ids.name))
             res.update({
-                'partner_id': [(6, 0, partner_ids.ids)],
+                'partner_id': partner_ids.id,
                 'outstanding_move_ids': move_line_vals,
                 'outstanding_payment_ids':payment_line_vals,
             })
@@ -229,33 +227,32 @@ class OutstandingPayment(models.TransientModel):
                 ###
                 #print("move===>>>",move)
                 #print("content===>>>",move.invoice_outstanding_credits_debits_widget.get('content'))
-                if move.invoice_outstanding_credits_debits_widget:
-                    for line in move.invoice_outstanding_credits_debits_widget.get('content'):
-                        #print("line===>>>",line)
-                        #print("payment_id.is_reconciled===>>",payment_id.is_reconciled)
-                        if line.get('account_payment_id') == payment_id.id and payment_id.is_reconciled == False and paid_amount:
-                            #print("in if condition")
-                            opp_reconcile_id = line.get('id')
-                            ln = self.env["account.move.line"].browse(opp_reconcile_id)
-                            if abs(ln.amount_residual_currency) > paid_amount:
-                                amount_residual_currency = sign * paid_amount
-                            else:
-                                amount_residual_currency = ln.amount_residual_currency
-                            
-                            if abs(ln.amount_residual) > paid_amount:
-                                amount_residual = sign * paid_amount
-                            else:
-                                amount_residual = ln.amount_residual
-                            ln.amount_residual_currency = amount_residual_currency
-                            ln.amount_residual = amount_residual
-                            move.js_assign_outstanding_line(opp_reconcile_id)
-                            #multiple move has partial payment and assign amount is fully paid then,
-                            # not repeate for 2nd payment
-                            if abs(amount_residual) == paid_amount:
-                                outstanding_move_ids -= outstanding_move_id
-                            paid_amount -= abs(amount_residual)
-                            outstanding_move_id.paid_amount -= abs(amount_residual)
-                            
+                for line in move.invoice_outstanding_credits_debits_widget.get('content'):
+                    #print("line===>>>",line)
+                    #print("payment_id.is_reconciled===>>",payment_id.is_reconciled)
+                    if line.get('account_payment_id') == payment_id.id and payment_id.is_reconciled == False and paid_amount:
+                        #print("in if condition")
+                        opp_reconcile_id = line.get('id')
+                        ln = self.env["account.move.line"].browse(opp_reconcile_id)
+                        if abs(ln.amount_residual_currency) > paid_amount:
+                            amount_residual_currency = sign * paid_amount
+                        else:
+                            amount_residual_currency = ln.amount_residual_currency
+                        
+                        if abs(ln.amount_residual) > paid_amount:
+                            amount_residual = sign * paid_amount
+                        else:
+                            amount_residual = ln.amount_residual
+                        ln.amount_residual_currency = amount_residual_currency
+                        ln.amount_residual = amount_residual
+                        move.js_assign_outstanding_line(opp_reconcile_id)
+                        #multiple move has partial payment and assign amount is fully paid then,
+                        # not repeate for 2nd payment
+                        if abs(amount_residual) == paid_amount:
+                            outstanding_move_ids -= outstanding_move_id
+                        paid_amount -= abs(amount_residual)
+                        outstanding_move_id.paid_amount -= abs(amount_residual)
+                        
         #second move is credit debit note
         #print("\n\n****second move is credit debit note")
         #print("reconcile_move_ids==>>",reconcile_move_ids)
