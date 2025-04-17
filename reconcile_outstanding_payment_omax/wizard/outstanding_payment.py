@@ -10,7 +10,7 @@ class OutstandingPayment(models.TransientModel):
     _name = 'outstanding.payment'
     _description = 'OutstandingPayment'
 
-    partner_id = fields.Many2one('res.partner', string='Partner',required=True, readonly=True)
+    partner_id = fields.Many2many('res.partner', string='Partner',required=True, readonly=True)
     outstanding_move_ids = fields.One2many('outstanding.account.move', 'outstanding_pyament_id', string="Moves")
     outstanding_payment_ids = fields.One2many('outstanding.account.payment', 'outstanding_pyament_id', string="Payments")
     to_be_paid_amount = fields.Float("To be Paid Total Amount", readonly=True)
@@ -85,7 +85,7 @@ class OutstandingPayment(models.TransientModel):
                 payment_type = 'outbound'
             if move_types[0] in ['out_invoice','in_refund']:
                 payment_type = 'inbound'
-            payments = self.env["account.payment"].search([('is_reconciled','=',False),('partner_id','=',partner_ids.id), ('currency_id','=',currency_ids.id),('payment_type','=',payment_type), ('state','in',['in_process', 'paid'])])
+            payments = self.env["account.payment"].search([('is_reconciled','=',False),('partner_id','in',partner_ids.ids), ('currency_id','=',currency_ids.id),('payment_type','=',payment_type), ('state','in',['in_process', 'paid'])])
             #ADD PAYMENTS Lines
             payment_line_vals = []
             payments = payments.sorted(key=lambda r: (r.date))

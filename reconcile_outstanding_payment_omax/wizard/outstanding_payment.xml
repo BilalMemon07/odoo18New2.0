@@ -10,8 +10,8 @@
                     <group>
                         <group>
                             <field name="move_type" invisible="1"/>
-                            <field name="partner_id" string="Customer" force_save="True" invisible="move_type not in ['out_invoice','out_refund']"/>
-                            <field name="partner_id" string="Vendor" force_save="True" invisible="move_type not in ['in_refund','in_invoice']"/>
+                            <field name="partner_id" widget="many2many_tags" string="Customer" force_save="True" invisible="move_type not in ['out_invoice','out_refund']"/>
+                            <field name="partner_id" widget="many2many_tags" string="Vendor" force_save="True" invisible="move_type not in ['in_refund','in_invoice']"/>
                         </group>
                     </group>
                     <!-- NOTE BELOW-->
